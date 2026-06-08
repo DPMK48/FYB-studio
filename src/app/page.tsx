@@ -45,7 +45,7 @@ export default function SplashPage() {
         </p>
 
         <h1
-          className={`font-display text-3xl leading-[0.95] sm:text-4xl md:text-6xl transition-all duration-700 delay-300 ${
+          className={`font-display text-2xl leading-[0.95] sm:text-4xl md:text-6xl transition-all duration-700 delay-300 ${
             mounted ? "translate-y-0 opacity-100" : "translate-y-6 opacity-0"
           }`}
         >

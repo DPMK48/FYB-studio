@@ -256,7 +256,7 @@ const PAPER = "#f3f3ee";
                 background: "#0c0c0c",
                 color: "white",
                 padding: "18px 20px",
-                fontSize: 18,
+                fontSize: 20,
                 lineHeight: 1.5,
               }}
             >
@@ -293,7 +293,7 @@ const PAPER = "#f3f3ee";
               </div>
               <div
                 style={{
-                  fontSize: 17,
+                  fontSize: 22,
                   marginTop: 4,
                   fontStyle: "italic",
                   lineHeight: 1.35,
@@ -304,7 +304,7 @@ const PAPER = "#f3f3ee";
             </div>
 
             {/* Field list */}
-            <div style={{ marginTop: 16, display: "grid", rowGap: 8 }}>
+            <div style={{ marginTop: 16, display: "grid", rowGap: 8, fontSize: 22, }}>
               <Field label="NICKNAME:" value={d.nickname} />
               <Field label="HOBBIES:" value={d.hobbies} />
               <Field label="SKILLSET" value={d.skillset} />
@@ -330,10 +330,10 @@ const PAPER = "#f3f3ee";
                 >
                   SOCIAL MEDIA HANDLE
                 </div>
-                <div style={{ fontSize: 16, marginTop: 2 }}>
+                <div style={{ fontSize: 22, marginTop: 2 }}>
                   {d.socialIg ? `IG,X,TT: ${d.socialIg}` : "IG,X,TT: —"}
                 </div>
-                <div style={{ fontSize: 16 }}>
+                <div style={{ fontSize: 22, marginTop: 2 }}>
                   {d.socialFb ? `Fb/LinkedIn: ${d.socialFb}` : "Fb/LinkedIn: —"}
                 </div>
               </div>
@@ -408,7 +408,7 @@ const PAPER = "#f3f3ee";
         >
           {label}
         </span>
-        <span style={{ color: "white", fontSize: 17 }}>{value || "—"}</span>
+        <span style={{ color: "white", fontSize: 22 }}>{value || "—"}</span>
       </div>
     );
   }
@@ -437,7 +437,7 @@ const PAPER = "#f3f3ee";
         </div>
         <div
           style={{
-            fontSize: 16,
+            fontSize: 22,
             marginTop: 2,
             color: "#0c0c0c",
             whiteSpace: multiline ? "pre-wrap" : "normal",

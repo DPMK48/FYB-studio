@@ -278,6 +278,24 @@ function FlyerModal({
 }) {
   const flyerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
+  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+
+  useEffect(() => {
+    if (!student.photoUrl) return;
+    fetch(student.photoUrl)
+      .then((r) => r.blob())
+      .then((blob) => {
+        const reader = new FileReader();
+        reader.onloadend = () => setPhotoDataUrl(reader.result as string);
+        reader.readAsDataURL(blob);
+      })
+      .catch(() => setPhotoDataUrl(student.photoUrl));
+  }, [student.photoUrl]);
+
+  const flyerData = {
+    ...student,
+    photoUrl: photoDataUrl ?? student.photoUrl,
+  };
 
   async function downloadPng() {
     if (!flyerRef.current) return;
@@ -328,10 +346,14 @@ function FlyerModal({
             </button>
             <button
               onClick={downloadPng}
-              disabled={downloading}
+              disabled={downloading || (!!student.photoUrl && !photoDataUrl)}
               className="rounded-full bg-[#009444] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg disabled:opacity-50"
             >
-              {downloading ? "Rendering..." : "Download PNG"}
+              {downloading
+                ? "Rendering..."
+                : !!student.photoUrl && !photoDataUrl
+                ? "Loading photo..."
+                : "Download PNG"}
             </button>
             <button
               onClick={onClose}
@@ -352,7 +374,7 @@ function FlyerModal({
               height: FLYER_HEIGHT,
             }}
           >
-            <Flyer ref={flyerRef} data={student} />
+            <Flyer ref={flyerRef} data={flyerData} />
           </div>
           <div
             style={{ height: FLYER_HEIGHT * 0.46, marginTop: -FLYER_HEIGHT }}
