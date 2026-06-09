@@ -16,7 +16,7 @@ export default function SiteNav() {
             </div>
           </div>
         </Link>
-        <nav className="gap-1 sm:flex">
+        <nav className="hidden gap-1 sm:flex">
           <NavLink href="/admin/login">Admin</NavLink>
         </nav>
       </div>
