@@ -199,7 +199,6 @@ const PAPER = "#f3f3ee";
                 <img
                   src={d.photoUrl ?? undefined}
                   alt={d.fullName || "Student"}
-                  crossOrigin="anonymous"
                   style={{
                     width: "100%",
                     height: "100%",

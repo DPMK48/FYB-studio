@@ -278,41 +278,66 @@ function FlyerModal({
 }) {
   const flyerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
-  const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
+  const [imgReady, setImgReady] = useState(!student.photoUrl);
 
+  // Wait for the photo <img> inside the Flyer to fully decode before allowing download.
+  // This ensures html-to-image captures the image (especially on iOS Safari).
   useEffect(() => {
-  if (!student.photoUrl) return;
-
-  fetch(`/api/proxy-image?url=${encodeURIComponent(student.photoUrl)}`)
-    .then((r) => r.blob())
-    .then((blob) => {
-      const reader = new FileReader();
-      reader.onloadend = () => setPhotoDataUrl(reader.result as string);
-      reader.readAsDataURL(blob);
-    })
-    .catch(() => setPhotoDataUrl(student.photoUrl));
-}, [student.photoUrl]);
-
-  const flyerData = {
-    ...student,
-    photoUrl: photoDataUrl ?? student.photoUrl,
-  };
+    if (!student.photoUrl) {
+      setImgReady(true);
+      return;
+    }
+    // The photo is a base64 data URL stored in the DB — no proxy needed.
+    // We just need to wait for the browser to decode it.
+    const img = new Image();
+    img.onload = () => setImgReady(true);
+    img.onerror = () => setImgReady(true); // proceed anyway on error
+    img.src = student.photoUrl;
+  }, [student.photoUrl]);
 
   async function downloadPng() {
     if (!flyerRef.current) return;
     setDownloading(true);
     try {
-      const dataUrl = await toPng(flyerRef.current, {
+      // html-to-image needs multiple passes on iOS Safari to render correctly.
+      // The first pass primes the internal cache, subsequent passes capture everything.
+      const opts = {
         cacheBust: true,
         pixelRatio: 2,
         width: FLYER_WIDTH,
         height: FLYER_HEIGHT,
-      });
-      const a = document.createElement("a");
+        skipAutoScale: true,
+        includeQueryParams: true,
+      };
+
+      // Warm-up passes (discard results) — fixes iOS Safari blank/missing images
+      await toPng(flyerRef.current, opts).catch(() => {});
+      await toPng(flyerRef.current, opts).catch(() => {});
+
+      // Final capture
+      const dataUrl = await toPng(flyerRef.current, opts);
+
       const safeName = student.fullName.replace(/[^a-z0-9]+/gi, "_");
-      a.href = dataUrl;
-      a.download = `25BITS_FYB_${safeName}.png`;
+      const fileName = `25BITS_FYB_${safeName}.png`;
+
+      // iOS Safari doesn't support anchor-download for data URLs.
+      // Convert to blob and use a proper object URL instead.
+      const res = await fetch(dataUrl);
+      const blob = await res.blob();
+      const blobUrl = URL.createObjectURL(blob);
+
+      const a = document.createElement("a");
+      a.href = blobUrl;
+      a.download = fileName;
+      document.body.appendChild(a);
       a.click();
+
+      // Cleanup after a delay to ensure the download starts
+      setTimeout(() => {
+        document.body.removeChild(a);
+        URL.revokeObjectURL(blobUrl);
+      }, 1000);
+
       onDownloaded();
     } catch (e) {
       console.error(e);
@@ -347,12 +372,12 @@ function FlyerModal({
             </button>
             <button
               onClick={downloadPng}
-              disabled={downloading || (!!student.photoUrl && !photoDataUrl)}
+              disabled={downloading || !imgReady}
               className="rounded-full bg-[#009444] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg disabled:opacity-50"
             >
               {downloading
                 ? "Rendering..."
-                : !!student.photoUrl && !photoDataUrl
+                : !imgReady
                 ? "Loading photo..."
                 : "Download PNG"}
             </button>
@@ -375,7 +400,7 @@ function FlyerModal({
               height: FLYER_HEIGHT,
             }}
           >
-            <Flyer ref={flyerRef} data={flyerData} />
+            <Flyer ref={flyerRef} data={student} />
           </div>
           <div
             style={{ height: FLYER_HEIGHT * 0.46, marginTop: -FLYER_HEIGHT }}
