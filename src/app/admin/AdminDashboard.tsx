@@ -281,16 +281,17 @@ function FlyerModal({
   const [photoDataUrl, setPhotoDataUrl] = useState<string | null>(null);
 
   useEffect(() => {
-    if (!student.photoUrl) return;
-    fetch(student.photoUrl)
-      .then((r) => r.blob())
-      .then((blob) => {
-        const reader = new FileReader();
-        reader.onloadend = () => setPhotoDataUrl(reader.result as string);
-        reader.readAsDataURL(blob);
-      })
-      .catch(() => setPhotoDataUrl(student.photoUrl));
-  }, [student.photoUrl]);
+  if (!student.photoUrl) return;
+
+  fetch(`/api/proxy-image?url=${encodeURIComponent(student.photoUrl)}`)
+    .then((r) => r.blob())
+    .then((blob) => {
+      const reader = new FileReader();
+      reader.onloadend = () => setPhotoDataUrl(reader.result as string);
+      reader.readAsDataURL(blob);
+    })
+    .catch(() => setPhotoDataUrl(student.photoUrl));
+}, [student.photoUrl]);
 
   const flyerData = {
     ...student,
