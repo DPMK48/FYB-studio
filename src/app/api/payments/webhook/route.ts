@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { students } from "@/db/schema";
+import { students, materialOrders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -41,48 +41,92 @@ export async function POST(req: NextRequest) {
       const reference = data.reference;
       const amount = data.amount / 100; // Paystack sends amount in kobo
 
-      // Retrieve student ID from metadata
-      let studentId = data.metadata?.studentId || data.metadata?.student_id;
+      const isMaterialOrder = 
+        reference?.startsWith("mat_") || 
+        Boolean(data.metadata?.orderId || data.metadata?.order_id);
 
-      // Robust fallback: Extract student ID from reference (format: fyb_{timestamp}_{studentId})
-      if (!studentId && reference) {
-        const parts = reference.split("_");
-        const lastPart = parts[parts.length - 1];
-        const parsedId = Number(lastPart);
-        if (!isNaN(parsedId) && parsedId > 0) {
-          studentId = parsedId;
+      if (isMaterialOrder) {
+        let orderId = data.metadata?.orderId || data.metadata?.order_id;
+        if (!orderId && reference) {
+          const parts = reference.split("_");
+          const lastPart = parts[parts.length - 1];
+          const parsedId = Number(lastPart);
+          if (!isNaN(parsedId) && parsedId > 0) {
+            orderId = parsedId;
+          }
         }
+
+        if (!orderId) {
+          console.warn(`Webhook Warning: Could not resolve orderId for reference: ${reference}`);
+          return NextResponse.json({ error: "Could not resolve order" }, { status: 400 });
+        }
+
+        const orderRows = await db
+          .select()
+          .from(materialOrders)
+          .where(eq(materialOrders.id, orderId))
+          .limit(1);
+
+        if (orderRows.length === 0) {
+          console.warn(`Webhook Warning: Material order with ID ${orderId} not found in database.`);
+          return NextResponse.json({ error: "Order not found" }, { status: 404 });
+        }
+
+        await db
+          .update(materialOrders)
+          .set({
+            paymentStatus: "paid",
+            paymentReference: reference,
+            amountPaid: amount,
+            updatedAt: new Date(),
+          })
+          .where(eq(materialOrders.id, orderId));
+
+        console.log(`Webhook Success: Material order verified and updated for Order ID: ${orderId}, Ref: ${reference}`);
+      } else {
+        // Retrieve student ID from metadata
+        let studentId = data.metadata?.studentId || data.metadata?.student_id;
+
+        // Robust fallback: Extract student ID from reference (format: fyb_{timestamp}_{studentId})
+        if (!studentId && reference) {
+          const parts = reference.split("_");
+          const lastPart = parts[parts.length - 1];
+          const parsedId = Number(lastPart);
+          if (!isNaN(parsedId) && parsedId > 0) {
+            studentId = parsedId;
+          }
+        }
+
+        if (!studentId) {
+          console.warn(`Webhook Warning: Could not resolve studentId for reference: ${reference}`);
+          return NextResponse.json({ error: "Could not resolve student" }, { status: 400 });
+        }
+
+        // Check if student exists first
+        const studentRows = await db
+          .select()
+          .from(students)
+          .where(eq(students.id, studentId))
+          .limit(1);
+
+        if (studentRows.length === 0) {
+          console.warn(`Webhook Warning: Student with ID ${studentId} not found in database.`);
+          return NextResponse.json({ error: "Student not found" }, { status: 404 });
+        }
+
+        // Update the payment status in database
+        await db
+          .update(students)
+          .set({
+            paymentStatus: "paid",
+            paymentReference: reference,
+            amountPaid: amount,
+            updatedAt: new Date(),
+          })
+          .where(eq(students.id, studentId));
+
+        console.log(`Webhook Success: Payment verified and updated for Student ID: ${studentId}, Ref: ${reference}`);
       }
-
-      if (!studentId) {
-        console.warn(`Webhook Warning: Could not resolve studentId for reference: ${reference}`);
-        return NextResponse.json({ error: "Could not resolve student" }, { status: 400 });
-      }
-
-      // Check if student exists first
-      const studentRows = await db
-        .select()
-        .from(students)
-        .where(eq(students.id, studentId))
-        .limit(1);
-
-      if (studentRows.length === 0) {
-        console.warn(`Webhook Warning: Student with ID ${studentId} not found in database.`);
-        return NextResponse.json({ error: "Student not found" }, { status: 404 });
-      }
-
-      // Update the payment status in database
-      await db
-        .update(students)
-        .set({
-          paymentStatus: "paid",
-          paymentReference: reference,
-          amountPaid: amount,
-          updatedAt: new Date(),
-        })
-        .where(eq(students.id, studentId));
-
-      console.log(`Webhook Success: Payment verified and updated for Student ID: ${studentId}, Ref: ${reference}`);
     }
 
     return NextResponse.json({ status: "success" });

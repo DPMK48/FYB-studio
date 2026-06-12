@@ -4,6 +4,7 @@ import SiteNav from "@/components/SiteNav";
 import { db } from "@/db";
 import { activities } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import MaterialsSection from "@/components/MaterialsSection";
 
 export const dynamic = "force-dynamic";
 
@@ -108,11 +109,14 @@ export default async function HomePage() {
             <Step
               n="03"
               title="Admin Sends Your Flyer"
-              body="The class admin downloads your HD flyer and shares it with you directly."
+              body="The class admin downloads your HD flyer and shares it in the group."
             />
           </div>
         </div>
       </section>
+
+      {/* FYB MATERIALS */}
+      <MaterialsSection />
 
       {/* ACTIVITIES PREVIEW */}
       <section className="bg-[#0c0c0c] py-20 text-white">

@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import { isAdmin } from "@/lib/adminAuth";
 import { db } from "@/db";
-import { students, activities } from "@/db/schema";
+import { students, activities, materialOrders } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import AdminDashboard from "./AdminDashboard";
 
@@ -13,9 +13,10 @@ export default async function AdminPage() {
     redirect("/admin/login");
   }
 
-  const [allStudents, allActivities] = await Promise.all([
+  const [allStudents, allActivities, allMaterialOrders] = await Promise.all([
     db.select().from(students).orderBy(desc(students.createdAt)),
     db.select().from(activities).orderBy(desc(activities.createdAt)),
+    db.select().from(materialOrders).orderBy(desc(materialOrders.createdAt)),
   ]);
 
   const paid = allStudents.filter((s) => s.paymentStatus === "paid");
@@ -55,6 +56,7 @@ export default async function AdminPage() {
         <AdminDashboard
           initialStudents={allStudents}
           initialActivities={allActivities}
+          initialMaterialOrders={allMaterialOrders}
         />
       </div>
     </div>

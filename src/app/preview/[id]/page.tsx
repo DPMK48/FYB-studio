@@ -42,7 +42,7 @@ export default async function PreviewPage({
             </h1>
             <p className="mt-2 text-sm text-black/60">
               {isPaid
-                ? "Your flyer has been generated and sent to the admin library. The class admin will share the HD copy with you shortly."
+                ? "Your flyer has been generated and sent to the admin library. The class admin will share the HD copy in the group."
                 : "Complete payment to unlock your preview."}
             </p>
           </div>

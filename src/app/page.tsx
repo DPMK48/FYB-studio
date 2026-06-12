@@ -5,7 +5,10 @@ import { useEffect, useState } from "react";
 
 export default function SplashPage() {
   const [mounted, setMounted] = useState(false);
-  useEffect(() => setMounted(true), []);
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setMounted(true);
+  }, []);
 
   return (
     <main className="relative min-h-screen overflow-hidden bg-[#0c0c0c] text-white">

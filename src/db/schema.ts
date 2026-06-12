@@ -6,6 +6,7 @@ import {
   timestamp,
   boolean,
   integer,
+  jsonb,
 } from "drizzle-orm/pg-core";
 
 export const students = pgTable("students", {
@@ -57,7 +58,26 @@ export const activities = pgTable("activities", {
     .notNull(),
 });
 
+export const materialOrders = pgTable("material_orders", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 200 }).notNull(),
+  amountPaid: integer("amount_paid").notNull(), // in Naira
+  paymentStatus: varchar("payment_status", { length: 30 })
+    .default("pending")
+    .notNull(), // pending | paid
+  paymentReference: varchar("payment_reference", { length: 200 }),
+  items: jsonb("items").notNull(), // stores details like: [{ id: 'sash', price: 2500, customName: '...' }]
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
 export type Student = typeof students.$inferSelect;
 export type NewStudent = typeof students.$inferInsert;
 export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
+export type MaterialOrder = typeof materialOrders.$inferSelect;
+export type NewMaterialOrder = typeof materialOrders.$inferInsert;

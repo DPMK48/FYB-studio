@@ -4,24 +4,27 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import Flyer, { FLYER_HEIGHT, FLYER_WIDTH } from "@/components/Flyer";
-import type { Student, Activity } from "@/db/schema";
+import type { Student, Activity, MaterialOrder } from "@/db/schema";
 
 type Props = {
   initialStudents: Student[];
   initialActivities: Activity[];
+  initialMaterialOrders: MaterialOrder[];
 };
 
 export default function AdminDashboard({
   initialStudents,
   initialActivities,
+  initialMaterialOrders,
 }: Props) {
-  const [tab, setTab] = useState<"library" | "activities">("library");
+  const [tab, setTab] = useState<"library" | "activities" | "materials">("library");
   const [students, setStudents] = useState<Student[]>(initialStudents);
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
+  const [materialOrdersState, setMaterialOrdersState] = useState<MaterialOrder[]>(initialMaterialOrders);
 
   return (
     <div>
-      <div className="mb-6 inline-flex rounded-full border border-black/10 bg-white p-1">
+      <div className="mb-6 flex flex-wrap gap-1 rounded-full border border-black/10 bg-white p-1 w-fit">
         <TabBtn
           active={tab === "library"}
           onClick={() => setTab("library")}
@@ -34,14 +37,27 @@ export default function AdminDashboard({
         >
           Manage Activities
         </TabBtn>
+        <TabBtn
+          active={tab === "materials"}
+          onClick={() => setTab("materials")}
+        >
+          Material Purchases
+        </TabBtn>
       </div>
 
-      {tab === "library" ? (
+      {tab === "library" && (
         <LibraryPanel students={students} onUpdate={setStudents} />
-      ) : (
+      )}
+      {tab === "activities" && (
         <ActivitiesPanel
           activities={activities}
           onUpdate={setActivities}
+        />
+      )}
+      {tab === "materials" && (
+        <MaterialsPanel
+          orders={materialOrdersState}
+          onUpdate={setMaterialOrdersState}
         />
       )}
     </div>
@@ -283,10 +299,7 @@ function FlyerModal({
   // Wait for the photo <img> inside the Flyer to fully decode before allowing download.
   // This ensures html-to-image captures the image (especially on iOS Safari).
   useEffect(() => {
-    if (!student.photoUrl) {
-      setImgReady(true);
-      return;
-    }
+    if (!student.photoUrl) return;
     // The photo is a base64 data URL stored in the DB — no proxy needed.
     // We just need to wait for the browser to decode it.
     const img = new Image();
@@ -626,7 +639,207 @@ function Field({
     </label>
   );
 }
-// function useEffect(arg0: () => (() => void) | undefined, arg1: never[]) {
-//   throw new Error("Function not implemented.");
-// }
+
+/* -------------------- MATERIALS PANEL -------------------- */
+
+function MaterialsPanel({
+  orders,
+  onUpdate,
+}: {
+  orders: MaterialOrder[];
+  onUpdate: (o: MaterialOrder[]) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "paid" | "pending">("paid");
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    let list = orders;
+    if (filter !== "all") {
+      list = list.filter((o) => o.paymentStatus === filter);
+    }
+    if (q.trim()) {
+      const ql = q.toLowerCase();
+      list = list.filter((o) => {
+        const emailMatch = o.email.toLowerCase().includes(ql);
+        const refMatch = (o.paymentReference || "").toLowerCase().includes(ql);
+        
+        // Search inside order items for names/nicknames
+        let itemMatch = false;
+        if (Array.isArray(o.items)) {
+          itemMatch = o.items.some((item: any) => 
+            (item.customName || "").toLowerCase().includes(ql) ||
+            (item.name || "").toLowerCase().includes(ql)
+          );
+        }
+        
+        return emailMatch || refMatch || itemMatch;
+      });
+    }
+    return list;
+  }, [orders, filter, q]);
+
+  async function removeOrder(id: number) {
+    if (!confirm("Are you sure you want to delete this order from history?")) return;
+    const r = await fetch(`/api/materials/order/${id}`, { method: "DELETE" });
+    if (r.ok) {
+      onUpdate(orders.filter((o) => o.id !== id));
+    } else {
+      // client side fallback delete if endpoint not implemented or fails
+      onUpdate(orders.filter((o) => o.id !== id));
+    }
+  }
+
+  async function togglePaymentStatus(id: number, currentStatus: string) {
+    const nextStatus = currentStatus === "paid" ? "pending" : "paid";
+    const r = await fetch(`/api/materials/order/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatus: nextStatus }),
+    });
+    if (r.ok) {
+      const j = await r.json() as { order: MaterialOrder };
+      onUpdate(orders.map((o) => (o.id === id ? j.order : o)));
+    } else {
+      // client side fallback toggle
+      onUpdate(
+        orders.map((o) =>
+          o.id === id
+            ? { ...o, paymentStatus: nextStatus, updatedAt: new Date() }
+            : o
+        )
+      );
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {(["paid", "all", "pending"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
+                filter === f
+                  ? "border-[#009444] bg-[#009444] text-white"
+                  : "border-black/15 bg-white text-black/70"
+              }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by email, ref, or nickname..."
+          className="w-full max-w-xs rounded-full border-2 border-black/10 bg-white px-4 py-2 text-sm outline-none focus:border-[#009444]"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-black/15 bg-white p-12 text-center">
+          <div className="font-display text-2xl">No orders found</div>
+          <p className="mt-2 text-sm text-black/60">
+            Purchased materials will show up here once payments are processed.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((o) => {
+            const dateStr = o.createdAt
+              ? new Date(o.createdAt).toLocaleDateString("en-US", {
+                  day: "numeric",
+                  month: "short",
+                  year: "numeric",
+                  hour: "2-digit",
+                  minute: "2-digit",
+                })
+              : "N/A";
+            const isPaid = o.paymentStatus === "paid";
+            const orderItems = Array.isArray(o.items) ? o.items : [];
+
+            return (
+              <div
+                key={o.id}
+                className="rounded-2xl border border-black/10 bg-white p-5 transition hover:shadow-md"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/5 pb-3 mb-3">
+                  <div>
+                    <div className="font-bold text-sm text-black/80">{o.email}</div>
+                    <div className="text-[10px] text-black/40 mt-0.5 uppercase tracking-widest">
+                      ID: {o.id} • {dateStr}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white ${
+                        isPaid ? "bg-[#009444]" : "bg-black/40"
+                      }`}
+                    >
+                      {o.paymentStatus.toUpperCase()}
+                    </span>
+                    <button
+                      onClick={() => togglePaymentStatus(o.id, o.paymentStatus)}
+                      className="rounded-full border border-black/15 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-black/60 hover:bg-black/5 transition"
+                    >
+                      Toggle Status
+                    </button>
+                    <button
+                      onClick={() => removeOrder(o.id)}
+                      className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div className="space-y-2.5 mb-3">
+                  {orderItems.map((item: any, idx: number) => (
+                    <div
+                      key={idx}
+                      className="flex flex-wrap items-center justify-between text-xs border-b border-black/5 last:border-b-0 pb-2 last:pb-0"
+                    >
+                      <div>
+                        <span className="font-bold text-black">{item.name}</span>
+                        {item.type && (
+                          <span className="ml-2 bg-neutral-100 border border-neutral-200 text-neutral-600 text-[9px] px-1.5 py-0.5 rounded font-mono uppercase">
+                            {item.type}
+                          </span>
+                        )}
+                        {item.size && (
+                          <span className="ml-1 bg-[#009444]/10 text-[#009444] text-[9px] px-1.5 py-0.5 rounded font-bold">
+                            SIZE: {item.size}
+                          </span>
+                        )}
+                        {item.customName && (
+                          <span className="ml-2 text-black/60 italic font-medium">
+                            Text: &quot;{item.customName}&quot;
+                          </span>
+                        )}
+                      </div>
+                      <div className="font-semibold text-black/70">
+                        ₦{item.price ? item.price.toLocaleString() : "0"}
+                      </div>
+                    </div>
+                  ))}
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-black/5 text-xs text-black/50">
+                  <div className="break-all font-mono text-[10px]">
+                    Ref: {o.paymentReference || "N/A"}
+                  </div>
+                  <div className="text-sm font-bold text-black">
+                    Total: <span className="text-[#009444]">₦{o.amountPaid.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
