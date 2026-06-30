@@ -6,6 +6,30 @@ import { isAdmin } from "@/lib/adminAuth";
 
 export const dynamic = "force-dynamic";
 
+export async function GET(
+  req: Request,
+  ctx: { params: Promise<{ id: string }> },
+) {
+  if (!(await isAdmin())) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+  const { id } = await ctx.params;
+  const sid = Number(id);
+  if (!sid) return NextResponse.json({ error: "Bad id" }, { status: 400 });
+
+  const [row] = await db
+    .select()
+    .from(students)
+    .where(eq(students.id, sid))
+    .limit(1);
+
+  if (!row) {
+    return NextResponse.json({ error: "Not found" }, { status: 404 });
+  }
+
+  return NextResponse.json({ student: row });
+}
+
 export async function PATCH(
   req: Request,
   ctx: { params: Promise<{ id: string }> },
@@ -29,3 +53,4 @@ export async function PATCH(
     .returning();
   return NextResponse.json({ student: row });
 }
+

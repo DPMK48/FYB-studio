@@ -37,7 +37,7 @@ export default function MaterialsSection() {
             <div className="relative z-20 mt-4 flex items-center justify-between">
               <div>
                 <h3 className="font-display text-lg text-black">FYB Custom Sash</h3>
-                <p className="text-sm font-semibold text-[#009444]">₦2,510</p>
+                <p className="text-sm font-semibold text-[#009444]">₦2,500</p>
               </div>
               <span className="rounded-full bg-black/5 p-2 text-black/60 transition group-hover:bg-[#009444]/10 group-hover:text-[#009444]">
                 →
@@ -60,7 +60,7 @@ export default function MaterialsSection() {
               <div>
                 <h3 className="font-display text-lg text-black">FYB T-Shirt</h3>
                 <p className="text-xs text-black/50">L, XL • Std & Prem</p>
-                <p className="text-sm font-semibold text-[#009444]">From ₦5,010</p>
+                <p className="text-sm font-semibold text-[#009444]">From ₦5,000</p>
               </div>
               <span className="rounded-full bg-black/5 p-2 text-black/60 transition group-hover:bg-[#009444]/10 group-hover:text-[#009444]">
                 →
@@ -99,7 +99,7 @@ export default function MaterialsSection() {
               <Link href="/materials" className="flex-1">
                 <h3 className="font-display text-lg text-black">FYB Varsity Hoodie</h3>
                 <p className="text-xs text-black/50">L, XL • Std & Prem</p>
-                <p className="text-sm font-semibold text-[#009444]">From ₦8,010</p>
+                <p className="text-sm font-semibold text-[#009444]">From ₦8,000</p>
               </Link>
               <Link href="/materials" className="rounded-full bg-black/5 p-2 text-black/60 transition hover:bg-[#009444]/10 hover:text-[#009444]">
                 →
@@ -121,7 +121,7 @@ export default function MaterialsSection() {
             <div className="relative z-20 mt-4 flex items-center justify-between">
               <div>
                 <h3 className="font-display text-lg text-black">FYB Snapback Cap</h3>
-                <p className="text-sm font-semibold text-[#009444]">₦2,510</p>
+                <p className="text-sm font-semibold text-[#009444]">₦2,500</p>
               </div>
               <span className="rounded-full bg-black/5 p-2 text-black/60 transition group-hover:bg-[#009444]/10 group-hover:text-[#009444]">
                 →

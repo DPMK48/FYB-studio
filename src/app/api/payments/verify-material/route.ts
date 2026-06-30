@@ -45,7 +45,7 @@ export async function POST(req: Request) {
       verified =
         Boolean(j.status) &&
         j.data?.status === "success" &&
-        j.data?.amount === amount * 100;
+        j.data?.amount >= amount * 100;
 
       if (!verified) {
         return NextResponse.json(

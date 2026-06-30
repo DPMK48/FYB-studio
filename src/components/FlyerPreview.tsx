@@ -23,7 +23,6 @@ export default function FlyerPreview({ data }: { data: FlyerData }) {
       style={{
         width: "100%",
         maxWidth: "100%",
-        contain: "layout",
         minHeight: scale === 0 ? 200 : undefined,
       }}
     >

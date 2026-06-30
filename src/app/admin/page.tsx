@@ -3,7 +3,7 @@ import SiteNav from "@/components/SiteNav";
 import { isAdmin } from "@/lib/adminAuth";
 import { db } from "@/db";
 import { students, activities, materialOrders } from "@/db/schema";
-import { desc } from "drizzle-orm";
+import { desc, sql } from "drizzle-orm";
 import AdminDashboard from "./AdminDashboard";
 
 export const dynamic = "force-dynamic";
@@ -14,10 +14,38 @@ export default async function AdminPage() {
   }
 
   const [allStudents, allActivities, allMaterialOrders] = await Promise.all([
-    db.select().from(students).orderBy(desc(students.createdAt)),
+    db.select({
+      id: students.id,
+      fullName: students.fullName,
+      nickname: students.nickname,
+      email: students.email,
+      matricNumber: students.matricNumber,
+      department: students.department,
+      favoriteQuote: students.favoriteQuote,
+      hobbies: students.hobbies,
+      skillset: students.skillset,
+      toughestSemester: students.toughestSemester,
+      mostDifficultCourse: students.mostDifficultCourse,
+      favoriteCourse: students.favoriteCourse,
+      messageToFamily: students.messageToFamily,
+      socialIg: students.socialIg,
+      socialFb: students.socialFb,
+      dateOfBirth: students.dateOfBirth,
+      stateOfOrigin: students.stateOfOrigin,
+      relationshipStatus: students.relationshipStatus,
+      paymentStatus: students.paymentStatus,
+      paymentReference: students.paymentReference,
+      amountPaid: students.amountPaid,
+      downloadedByAdmin: students.downloadedByAdmin,
+      sharedWithStudent: students.sharedWithStudent,
+      createdAt: students.createdAt,
+      updatedAt: students.updatedAt,
+      hasPhoto: sql<boolean>`CASE WHEN ${students.photoUrl} IS NOT NULL AND ${students.photoUrl} != '' THEN true ELSE false END`,
+    }).from(students).orderBy(desc(students.createdAt)),
     db.select().from(activities).orderBy(desc(activities.createdAt)),
     db.select().from(materialOrders).orderBy(desc(materialOrders.createdAt)),
   ]);
+
 
   const paid = allStudents.filter((s) => s.paymentStatus === "paid");
   const downloaded = paid.filter((s) => s.downloadedByAdmin);

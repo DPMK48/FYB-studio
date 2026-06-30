@@ -1,6 +1,8 @@
 import { NextResponse } from "next/server";
 import { db } from "@/db";
 import { students } from "@/db/schema";
+import fs from "fs";
+import path from "path";
 
 export const dynamic = "force-dynamic";
 
@@ -13,6 +15,28 @@ export async function POST(req: Request) {
         { status: 400 },
       );
     }
+
+    let savedPhotoUrl = body.photoUrl || null;
+    if (savedPhotoUrl && savedPhotoUrl.startsWith("data:image/")) {
+      const match = savedPhotoUrl.match(/^data:image\/([a-zA-Z+]+);base64,(.+)$/);
+      if (match) {
+        let ext = match[1] === "jpeg" ? "jpg" : match[1];
+        if (ext === "svg+xml") ext = "svg";
+        const base64Data = match[2];
+        const buffer = Buffer.from(base64Data, "base64");
+        const filename = `photo_student_${Date.now()}_${Math.floor(Math.random() * 100000)}.${ext}`;
+        
+        const uploadsDir = path.join(process.cwd(), "public", "uploads");
+        if (!fs.existsSync(uploadsDir)) {
+          fs.mkdirSync(uploadsDir, { recursive: true });
+        }
+        
+        const filePath = path.join(uploadsDir, filename);
+        fs.writeFileSync(filePath, buffer);
+        savedPhotoUrl = `/uploads/${filename}`;
+      }
+    }
+
     const [row] = await db
       .insert(students)
       .values({
@@ -20,7 +44,7 @@ export async function POST(req: Request) {
         nickname: body.nickname || null,
         email: String(body.email),
         matricNumber: body.matricNumber || null,
-        photoUrl: body.photoUrl || null,
+        photoUrl: savedPhotoUrl,
         favoriteQuote: body.favoriteQuote || null,
         hobbies: body.hobbies || null,
         skillset: body.skillset || null,
@@ -42,3 +66,4 @@ export async function POST(req: Request) {
     return NextResponse.json({ error: msg }, { status: 500 });
   }
 }
+

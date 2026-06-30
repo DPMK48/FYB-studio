@@ -6,8 +6,10 @@ import { toPng } from "html-to-image";
 import Flyer, { FLYER_HEIGHT, FLYER_WIDTH } from "@/components/Flyer";
 import type { Student, Activity, MaterialOrder } from "@/db/schema";
 
+export type StudentSummary = Omit<Student, "photoUrl"> & { hasPhoto: boolean };
+
 type Props = {
-  initialStudents: Student[];
+  initialStudents: StudentSummary[];
   initialActivities: Activity[];
   initialMaterialOrders: MaterialOrder[];
 };
@@ -18,7 +20,7 @@ export default function AdminDashboard({
   initialMaterialOrders,
 }: Props) {
   const [tab, setTab] = useState<"library" | "activities" | "materials">("library");
-  const [students, setStudents] = useState<Student[]>(initialStudents);
+  const [students, setStudents] = useState<StudentSummary[]>(initialStudents);
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
   const [materialOrdersState, setMaterialOrdersState] = useState<MaterialOrder[]>(initialMaterialOrders);
 
@@ -76,11 +78,10 @@ function TabBtn({
   return (
     <button
       onClick={onClick}
-      className={`rounded-full px-5 py-2 text-sm font-semibold transition ${
-        active
+      className={`rounded-full px-5 py-2 text-sm font-semibold transition ${active
           ? "bg-[#009444] text-white shadow"
           : "text-black/70 hover:text-black"
-      }`}
+        }`}
     >
       {children}
     </button>
@@ -93,12 +94,12 @@ function LibraryPanel({
   students,
   onUpdate,
 }: {
-  students: Student[];
-  onUpdate: (s: Student[]) => void;
+  students: StudentSummary[];
+  onUpdate: (s: StudentSummary[]) => void;
 }) {
   const [filter, setFilter] = useState<"all" | "paid" | "pending">("paid");
   const [q, setQ] = useState("");
-  const [selected, setSelected] = useState<Student | null>(null);
+  const [selected, setSelected] = useState<StudentSummary | null>(null);
 
   const filtered = useMemo(() => {
     let list = students;
@@ -123,8 +124,12 @@ function LibraryPanel({
     });
     if (r.ok) {
       const j = (await r.json()) as { student: Student };
-      onUpdate(students.map((s) => (s.id === id ? j.student : s)));
-      if (selected?.id === id) setSelected(j.student);
+      const summary: StudentSummary = {
+        ...j.student,
+        hasPhoto: Boolean(j.student.photoUrl && j.student.photoUrl.trim() !== ""),
+      };
+      onUpdate(students.map((s) => (s.id === id ? summary : s)));
+      if (selected?.id === id) setSelected(summary);
     }
   }
 
@@ -136,11 +141,10 @@ function LibraryPanel({
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
-                filter === f
+              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${filter === f
                   ? "border-[#009444] bg-[#009444] text-white"
                   : "border-black/15 bg-white text-black/70"
-              }`}
+                }`}
             >
               {f}
             </button>
@@ -195,7 +199,7 @@ function StudentCard({
   onOpen,
   onToggleShared,
 }: {
-  s: Student;
+  s: StudentSummary;
   onOpen: () => void;
   onToggleShared: () => void;
 }) {
@@ -203,13 +207,11 @@ function StudentCard({
   return (
     <div className="overflow-hidden rounded-2xl border border-black/10 bg-white transition hover:shadow-xl">
       <div className="relative h-48 w-full bg-gradient-to-br from-[#009444]/15 to-[#d3de2c]/20">
-        {s.photoUrl ? (
-          // eslint-disable-next-line @next/next/no-img-element
-          <img
-            src={s.photoUrl}
-            alt={s.fullName}
-            className="h-full w-full object-cover"
-          />
+        {s.hasPhoto ? (
+          <div className="flex h-full flex-col items-center justify-center text-sm font-semibold text-[#009444]/80 gap-1">
+            <span className="text-2xl">📸</span>
+            <span>Photo Uploaded</span>
+          </div>
         ) : (
           <div className="flex h-full items-center justify-center text-sm text-black/40">
             No photo
@@ -244,11 +246,10 @@ function StudentCard({
             onClick={onToggleShared}
             disabled={!isPaid}
             title="Mark as shared"
-            className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${
-              s.sharedWithStudent
+            className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${s.sharedWithStudent
                 ? "bg-[#d3de2c] text-black"
                 : "border border-black/15 bg-white text-black/70"
-            } disabled:opacity-40`}
+              } disabled:opacity-40`}
           >
             {s.sharedWithStudent ? "✓ Shared" : "Mark Shared"}
           </button>
@@ -262,9 +263,8 @@ function Dot({ on, label }: { on: boolean; label: string }) {
   return (
     <span className="inline-flex items-center gap-1 text-black/60">
       <span
-        className={`inline-block h-2 w-2 rounded-full ${
-          on ? "bg-[#009444]" : "bg-black/20"
-        }`}
+        className={`inline-block h-2 w-2 rounded-full ${on ? "bg-[#009444]" : "bg-black/20"
+          }`}
       />
       {label}
     </span>
@@ -282,34 +282,55 @@ function Pill({ color, text }: { color: string; text: string }) {
 }
 
 function FlyerModal({
-  student,
+  student: summaryStudent,
   onClose,
   onDownloaded,
   onToggleShared,
 }: {
-  student: Student;
+  student: StudentSummary;
   onClose: () => void;
   onDownloaded: () => void;
   onToggleShared: () => void;
 }) {
   const flyerRef = useRef<HTMLDivElement>(null);
   const [downloading, setDownloading] = useState(false);
-  const [imgReady, setImgReady] = useState(!student.photoUrl);
+  const [student, setStudent] = useState<Student | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [imgReady, setImgReady] = useState(false);
+
+  useEffect(() => {
+    async function loadFullStudent() {
+      try {
+        const r = await fetch(`/api/students/${summaryStudent.id}`);
+        if (!r.ok) throw new Error("Failed to fetch student details");
+        const j = await r.json();
+        setStudent(j.student);
+      } catch (e) {
+        console.error(e);
+        alert("Failed to load student details.");
+      } finally {
+        setLoading(false);
+      }
+    }
+    loadFullStudent();
+  }, [summaryStudent.id]);
 
   // Wait for the photo <img> inside the Flyer to fully decode before allowing download.
   // This ensures html-to-image captures the image (especially on iOS Safari).
   useEffect(() => {
-    if (!student.photoUrl) return;
-    // The photo is a base64 data URL stored in the DB — no proxy needed.
-    // We just need to wait for the browser to decode it.
+    if (!student) return;
+    if (!student.photoUrl) {
+      setImgReady(true);
+      return;
+    }
     const img = new Image();
     img.onload = () => setImgReady(true);
     img.onerror = () => setImgReady(true); // proceed anyway on error
     img.src = student.photoUrl;
-  }, [student.photoUrl]);
+  }, [student]);
 
   async function downloadPng() {
-    if (!flyerRef.current) return;
+    if (!flyerRef.current || !student) return;
     setDownloading(true);
     try {
       // html-to-image needs multiple passes on iOS Safari to render correctly.
@@ -324,8 +345,8 @@ function FlyerModal({
       };
 
       // Warm-up passes (discard results) — fixes iOS Safari blank/missing images
-      await toPng(flyerRef.current, opts).catch(() => {});
-      await toPng(flyerRef.current, opts).catch(() => {});
+      await toPng(flyerRef.current, opts).catch(() => { });
+      await toPng(flyerRef.current, opts).catch(() => { });
 
       // Final capture
       const dataUrl = await toPng(flyerRef.current, opts);
@@ -367,32 +388,33 @@ function FlyerModal({
         {/* Header row */}
         <div className="mb-4 flex flex-wrap items-center justify-between gap-3">
           <div>
-            <div className="font-display text-2xl">{student.fullName}</div>
+            <div className="font-display text-2xl">{summaryStudent.fullName}</div>
             <div className="text-xs text-black/60">
-              {student.email} • Ref: {student.paymentReference?.slice(0, 18)}
+              {summaryStudent.email} • Ref: {summaryStudent.paymentReference?.slice(0, 18) || "—"}
             </div>
           </div>
           <div className="flex flex-wrap gap-2">
             <button
               onClick={onToggleShared}
-              className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider transition ${
-                student.sharedWithStudent
+              className={`rounded-full px-4 py-2 text-xs font-bold uppercase tracking-wider transition ${summaryStudent.sharedWithStudent
                   ? "bg-[#d3de2c] text-black"
                   : "border border-black/15 bg-white"
-              }`}
+                }`}
             >
-              {student.sharedWithStudent ? "✓ Marked Shared" : "Mark Shared"}
+              {summaryStudent.sharedWithStudent ? "✓ Marked Shared" : "Mark Shared"}
             </button>
             <button
               onClick={downloadPng}
-              disabled={downloading || !imgReady}
+              disabled={downloading || !imgReady || loading}
               className="rounded-full bg-[#009444] px-5 py-2 text-xs font-bold uppercase tracking-wider text-white shadow-lg disabled:opacity-50"
             >
               {downloading
                 ? "Rendering..."
-                : !imgReady
-                ? "Loading photo..."
-                : "Download PNG"}
+                : loading
+                  ? "Loading..."
+                  : !imgReady
+                    ? "Loading photo..."
+                    : "Download PNG"}
             </button>
             <button
               onClick={onClose}
@@ -405,20 +427,28 @@ function FlyerModal({
 
         {/* Flyer preview */}
         <div className="overflow-hidden rounded-xl border border-black/10 bg-[#f4f4ee]">
-          <div
-            style={{
-              transform: "scale(0.46)",
-              transformOrigin: "top left",
-              width: FLYER_WIDTH,
-              height: FLYER_HEIGHT,
-            }}
-          >
-            <Flyer ref={flyerRef} data={student} />
-          </div>
-          <div
-            style={{ height: FLYER_HEIGHT * 0.46, marginTop: -FLYER_HEIGHT }}
-            className="pointer-events-none"
-          />
+          {loading || !student ? (
+            <div className="flex min-h-[300px] items-center justify-center text-sm font-semibold text-black/60">
+              Loading flyer preview...
+            </div>
+          ) : (
+            <>
+              <div
+                style={{
+                  transform: "scale(0.46)",
+                  transformOrigin: "top left",
+                  width: FLYER_WIDTH,
+                  height: FLYER_HEIGHT,
+                }}
+              >
+                <Flyer ref={flyerRef} data={student} />
+              </div>
+              <div
+                style={{ height: FLYER_HEIGHT * 0.46, marginTop: -FLYER_HEIGHT }}
+                className="pointer-events-none"
+              />
+            </>
+          )}
         </div>
 
       </div>
@@ -662,16 +692,16 @@ function MaterialsPanel({
       list = list.filter((o) => {
         const emailMatch = o.email.toLowerCase().includes(ql);
         const refMatch = (o.paymentReference || "").toLowerCase().includes(ql);
-        
+
         // Search inside order items for names/nicknames
         let itemMatch = false;
         if (Array.isArray(o.items)) {
-          itemMatch = o.items.some((item: any) => 
+          itemMatch = o.items.some((item: any) =>
             (item.customName || "").toLowerCase().includes(ql) ||
             (item.name || "").toLowerCase().includes(ql)
           );
         }
-        
+
         return emailMatch || refMatch || itemMatch;
       });
     }
@@ -719,11 +749,10 @@ function MaterialsPanel({
             <button
               key={f}
               onClick={() => setFilter(f)}
-              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${
-                filter === f
+              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${filter === f
                   ? "border-[#009444] bg-[#009444] text-white"
                   : "border-black/15 bg-white text-black/70"
-              }`}
+                }`}
             >
               {f}
             </button>
@@ -749,12 +778,12 @@ function MaterialsPanel({
           {filtered.map((o) => {
             const dateStr = o.createdAt
               ? new Date(o.createdAt).toLocaleDateString("en-US", {
-                  day: "numeric",
-                  month: "short",
-                  year: "numeric",
-                  hour: "2-digit",
-                  minute: "2-digit",
-                })
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
               : "N/A";
             const isPaid = o.paymentStatus === "paid";
             const orderItems = Array.isArray(o.items) ? o.items : [];
@@ -773,9 +802,8 @@ function MaterialsPanel({
                   </div>
                   <div className="flex items-center gap-2">
                     <span
-                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white ${
-                        isPaid ? "bg-[#009444]" : "bg-black/40"
-                      }`}
+                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white ${isPaid ? "bg-[#009444]" : "bg-black/40"
+                        }`}
                     >
                       {o.paymentStatus.toUpperCase()}
                     </span>
