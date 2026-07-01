@@ -26,14 +26,22 @@ export async function POST(req: Request) {
         const buffer = Buffer.from(base64Data, "base64");
         const filename = `photo_student_${Date.now()}_${Math.floor(Math.random() * 100000)}.${ext}`;
         
-        const uploadsDir = path.join(process.cwd(), "public", "uploads");
-        if (!fs.existsSync(uploadsDir)) {
-          fs.mkdirSync(uploadsDir, { recursive: true });
+        try {
+          const uploadsDir = path.join(process.cwd(), "public", "uploads");
+          if (!fs.existsSync(uploadsDir)) {
+            fs.mkdirSync(uploadsDir, { recursive: true });
+          }
+          
+          const filePath = path.join(uploadsDir, filename);
+          fs.writeFileSync(filePath, buffer);
+          savedPhotoUrl = `/uploads/${filename}`;
+        } catch (fsError) {
+          console.warn(
+            "Failed to save image to public/uploads (likely read-only filesystem in serverless environment). Falling back to base64 URL in database:",
+            fsError
+          );
+          // Keep the original base64 URL in savedPhotoUrl
         }
-        
-        const filePath = path.join(uploadsDir, filename);
-        fs.writeFileSync(filePath, buffer);
-        savedPhotoUrl = `/uploads/${filename}`;
       }
     }
 
