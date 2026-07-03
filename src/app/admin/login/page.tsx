@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
+import Footer from "@/components/Footer";
 
 export default function AdminLoginPage() {
   const [password, setPassword] = useState("");
@@ -34,9 +35,9 @@ export default function AdminLoginPage() {
   }
 
   return (
-    <div>
+    <div className="min-h-screen flex flex-col">
       <SiteNav />
-      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-10">
+      <div className="mx-auto flex min-h-[70vh] max-w-md flex-col justify-center px-5 py-10 flex-1">
         <div className="rounded-2xl border border-black/10 bg-white p-8 shadow-xl">
           <p className="text-xs font-bold uppercase tracking-widest text-[#009444]">
             Restricted area
@@ -71,6 +72,7 @@ export default function AdminLoginPage() {
           
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

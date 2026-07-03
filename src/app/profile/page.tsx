@@ -3,6 +3,7 @@
 import { useMemo, useRef, useState, useEffect } from "react"; 
 import { useRouter } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
+import Footer from "@/components/Footer";
 import Flyer, { FLYER_HEIGHT, FLYER_WIDTH, type FlyerData } from "@/components/Flyer";
 
 type FormState = FlyerData & {
@@ -173,9 +174,9 @@ export default function ProfilePage() {
   }
 
   return (
-    <div >
+    <div className="min-h-screen flex flex-col">
       <SiteNav />
-      <div className="mx-auto max-w-7xl px-5 py-10">
+      <div className="mx-auto max-w-7xl px-5 py-10 flex-1">
         <div className="mb-8">
           <p className="text-xs font-bold uppercase tracking-widest text-[#009444]">
             Step {step} of 2
@@ -456,6 +457,7 @@ export default function ProfilePage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

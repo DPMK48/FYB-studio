@@ -2,6 +2,7 @@ import SiteNav from "@/components/SiteNav";
 import { db } from "@/db";
 import { activities } from "@/db/schema";
 import { desc } from "drizzle-orm";
+import Footer from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -74,6 +75,7 @@ export default async function ActivitiesPage() {
           </div>
         )}
       </section>
+      <Footer />
     </div>
   );
 }

@@ -5,6 +5,7 @@ import { db } from "@/db";
 import { activities } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import MaterialsSection from "@/components/MaterialsSection";
+import Footer from "@/components/Footer";
 
 export const dynamic = "force-dynamic";
 
@@ -173,11 +174,7 @@ export default async function HomePage() {
         </div>
       </section>
 
-      <footer className="border-t border-black/10 bg-[#f4f4ee] py-10">
-        <div className="mx-auto max-w-7xl px-5 text-center text-sm text-black/60">
-          © 2025 25BITS FYB Studio • Faculty of Computing, ATBU, Bauchi State.
-        </div>
-      </footer>
+      <Footer />
     </div>
   );
 }

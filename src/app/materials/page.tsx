@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import Image from "next/image";
 import SiteNav from "@/components/SiteNav";
+import Footer from "@/components/Footer";
 
 type MaterialId = "sash" | "tshirt" | "hoodie" | "cap";
 
@@ -80,16 +81,16 @@ export default function MaterialsPage() {
   // Price configuration
   const prices = useMemo(() => {
     return {
-      sash: 2510,
+      sash: 2500,
       tshirt: {
-        standard: 5010,
-        premium: 10510,
+        standard: 5000,
+        premium: 10500,
       },
       hoodie: {
-        standard: 8010,
-        premium: 13010,
+        standard: 8000,
+        premium: 13000,
       },
-      cap: 2510,
+      cap: 2500,
     };
   }, []);
 
@@ -280,9 +281,9 @@ export default function MaterialsPage() {
 
   if (success) {
     return (
-      <div className="min-h-screen bg-[#0c0c0c] text-white">
+      <div className="min-h-screen bg-[#0c0c0c] text-white flex flex-col">
         <SiteNav />
-        <div className="mx-auto max-w-2xl px-5 py-20 text-center">
+        <div className="mx-auto max-w-2xl px-5 py-20 text-center flex-1">
           <div className="mx-auto mb-6 flex h-20 w-20 items-center justify-center rounded-full bg-[#009444]/20 border border-[#009444]/50">
             <span className="text-3xl text-[#009444]">✓</span>
           </div>
@@ -327,15 +328,16 @@ export default function MaterialsPage() {
             </Link>
           </div>
         </div>
+        <Footer />
       </div>
     );
   }
 
   return (
-    <div className="min-h-screen bg-[#fcfcf9] text-black">
+    <div className="min-h-screen bg-[#fcfcf9] text-black flex flex-col">
       <SiteNav />
 
-      <div className="mx-auto max-w-7xl px-5 py-10">
+      <div className="mx-auto max-w-7xl px-5 py-10 flex-1">
         <div className="mb-8">
           <Link href="/home" className="text-xs font-bold uppercase tracking-widest text-[#009444] hover:underline">
             ← Back to Home
@@ -757,6 +759,7 @@ export default function MaterialsPage() {
           </div>
         </div>
       </div>
+      <Footer />
     </div>
   );
 }

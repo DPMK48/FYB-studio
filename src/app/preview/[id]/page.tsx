@@ -3,6 +3,7 @@ import { notFound } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import Flyer, { FLYER_HEIGHT, FLYER_WIDTH } from "@/components/Flyer";
 import FlyerPreview from "@/components/FlyerPreview";
+import Footer from "@/components/Footer";
 import { db } from "@/db";
 import { students } from "@/db/schema";
 import { eq } from "drizzle-orm";
@@ -29,9 +30,9 @@ export default async function PreviewPage({
   const isPaid = student.paymentStatus === "paid";
 
   return (
-    <div>
+    <div className="min-h-screen flex flex-col">
       <SiteNav />
-      <div className="mx-auto max-w-5xl px-5 py-10">
+      <div className="mx-auto max-w-5xl px-5 py-10 flex-1">
         <div className="mb-6 flex flex-wrap items-end justify-between gap-3">
           <div>
             <p className="text-xs font-bold uppercase tracking-widest text-[#009444]">
@@ -95,6 +96,7 @@ export default async function PreviewPage({
           </div>
         )}
       </div>
+      <Footer />
     </div>
   );
 }
