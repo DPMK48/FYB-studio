@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/db";
-import { students, materialOrders } from "@/db/schema";
+import { students, materialOrders, ticketOrders } from "@/db/schema";
 import { eq } from "drizzle-orm";
 import crypto from "crypto";
 
@@ -45,6 +45,10 @@ export async function POST(req: NextRequest) {
         reference?.startsWith("mat_") || 
         Boolean(data.metadata?.orderId || data.metadata?.order_id);
 
+      const isTicketOrder = 
+        reference?.startsWith("ticket_") || 
+        Boolean(data.metadata?.ticketOrderId || data.metadata?.ticket_order_id);
+
       if (isMaterialOrder) {
         let orderId = data.metadata?.orderId || data.metadata?.order_id;
         if (!orderId && reference) {
@@ -83,6 +87,44 @@ export async function POST(req: NextRequest) {
           .where(eq(materialOrders.id, orderId));
 
         console.log(`Webhook Success: Material order verified and updated for Order ID: ${orderId}, Ref: ${reference}`);
+      } else if (isTicketOrder) {
+        let ticketOrderId = data.metadata?.ticketOrderId || data.metadata?.ticket_order_id;
+        if (!ticketOrderId && reference) {
+          const parts = reference.split("_");
+          const lastPart = parts[parts.length - 1];
+          const parsedId = Number(lastPart);
+          if (!isNaN(parsedId) && parsedId > 0) {
+            ticketOrderId = parsedId;
+          }
+        }
+
+        if (!ticketOrderId) {
+          console.warn(`Webhook Warning: Could not resolve ticketOrderId for reference: ${reference}`);
+          return NextResponse.json({ error: "Could not resolve ticket order" }, { status: 400 });
+        }
+
+        const ticketRows = await db
+          .select()
+          .from(ticketOrders)
+          .where(eq(ticketOrders.id, ticketOrderId))
+          .limit(1);
+
+        if (ticketRows.length === 0) {
+          console.warn(`Webhook Warning: Ticket order with ID ${ticketOrderId} not found in database.`);
+          return NextResponse.json({ error: "Ticket order not found" }, { status: 404 });
+        }
+
+        await db
+          .update(ticketOrders)
+          .set({
+            paymentStatus: "paid",
+            paymentReference: reference,
+            amountPaid: amount,
+            updatedAt: new Date(),
+          })
+          .where(eq(ticketOrders.id, ticketOrderId));
+
+        console.log(`Webhook Success: Ticket order verified and updated for Ticket ID: ${ticketOrderId}, Ref: ${reference}`);
       } else {
         // Retrieve student ID from metadata
         let studentId = data.metadata?.studentId || data.metadata?.student_id;

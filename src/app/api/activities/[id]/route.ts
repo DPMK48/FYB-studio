@@ -22,6 +22,8 @@ export async function PATCH(
   if (typeof body.date === "string") update.date = body.date;
   if (typeof body.location === "string") update.location = body.location;
   if (typeof body.status === "string") update.status = body.status;
+  if (typeof body.imageUrl === "string") update.imageUrl = body.imageUrl;
+  if (body.price !== undefined) update.price = Number(body.price);
   const [row] = await db
     .update(activities)
     .set(update)

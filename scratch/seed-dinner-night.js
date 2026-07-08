@@ -8,10 +8,14 @@ const client = new Client({
 
 async function main() {
   await client.connect();
-  const res = await client.query('SELECT * FROM activities ORDER BY id DESC');
-  console.log("All activities:", res.rows);
+  const res = await client.query(
+    `UPDATE activities 
+     SET image_url = '/images/dinner-night.jpg', 
+         price = 8000 
+     WHERE id = 1`
+  );
+  console.log("Updated activity:", res.rowCount);
   await client.end();
 }
 
 main().catch(console.error);
-

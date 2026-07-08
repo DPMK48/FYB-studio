@@ -4,7 +4,7 @@ import { useMemo, useRef, useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { toPng } from "html-to-image";
 import Flyer, { FLYER_HEIGHT, FLYER_WIDTH } from "@/components/Flyer";
-import type { Student, Activity, MaterialOrder } from "@/db/schema";
+import type { Student, Activity, MaterialOrder, TicketOrder } from "@/db/schema";
 
 export type StudentSummary = Omit<Student, "photoUrl"> & { hasPhoto: boolean };
 
@@ -12,17 +12,20 @@ type Props = {
   initialStudents: StudentSummary[];
   initialActivities: Activity[];
   initialMaterialOrders: MaterialOrder[];
+  initialTicketOrders: TicketOrder[];
 };
 
 export default function AdminDashboard({
   initialStudents,
   initialActivities,
   initialMaterialOrders,
+  initialTicketOrders,
 }: Props) {
-  const [tab, setTab] = useState<"library" | "activities" | "materials">("library");
+  const [tab, setTab] = useState<"library" | "activities" | "materials" | "tickets">("library");
   const [students, setStudents] = useState<StudentSummary[]>(initialStudents);
   const [activities, setActivities] = useState<Activity[]>(initialActivities);
   const [materialOrdersState, setMaterialOrdersState] = useState<MaterialOrder[]>(initialMaterialOrders);
+  const [ticketOrdersState, setTicketOrdersState] = useState<TicketOrder[]>(initialTicketOrders);
 
   return (
     <div>
@@ -45,6 +48,12 @@ export default function AdminDashboard({
         >
           Material Purchases
         </TabBtn>
+        <TabBtn
+          active={tab === "tickets"}
+          onClick={() => setTab("tickets")}
+        >
+          Ticket Purchases
+        </TabBtn>
       </div>
 
       {tab === "library" && (
@@ -60,6 +69,13 @@ export default function AdminDashboard({
         <MaterialsPanel
           orders={materialOrdersState}
           onUpdate={setMaterialOrdersState}
+        />
+      )}
+      {tab === "tickets" && (
+        <TicketsPanel
+          orders={ticketOrdersState}
+          activities={activities}
+          onUpdate={setTicketOrdersState}
         />
       )}
     </div>
@@ -237,19 +253,17 @@ function StudentCard({
         <div className="mt-4 flex gap-2">
           <button
             onClick={onOpen}
-            disabled={!isPaid}
-            className="flex-1 rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-wider text-white disabled:opacity-40"
+            className="flex-1 rounded-full bg-black px-4 py-2 text-xs font-bold uppercase tracking-wider text-white"
           >
             Open & Download
           </button>
           <button
             onClick={onToggleShared}
-            disabled={!isPaid}
             title="Mark as shared"
             className={`rounded-full px-3 py-2 text-xs font-bold uppercase tracking-wider transition ${s.sharedWithStudent
                 ? "bg-[#d3de2c] text-black"
                 : "border border-black/15 bg-white text-black/70"
-              } disabled:opacity-40`}
+              }`}
           >
             {s.sharedWithStudent ? "✓ Shared" : "Mark Shared"}
           </button>
@@ -320,7 +334,7 @@ function FlyerModal({
   useEffect(() => {
     if (!student) return;
     if (!student.photoUrl) {
-      setImgReady(true);
+      setTimeout(() => setImgReady(true), 0);
       return;
     }
     const img = new Image();
@@ -472,6 +486,8 @@ function ActivitiesPanel({
     date: "",
     location: "",
     status: "upcoming",
+    imageUrl: "",
+    price: 0,
   });
   const [saving, setSaving] = useState(false);
   const router = useRouter();
@@ -495,6 +511,8 @@ function ActivitiesPanel({
           date: "",
           location: "",
           status: "upcoming",
+          imageUrl: "",
+          price: 0,
         });
         router.refresh();
       }
@@ -550,6 +568,24 @@ function ActivitiesPanel({
             onChange={(v) => setForm({ ...form, location: v })}
             placeholder="ATBU Main Auditorium"
           />
+          <Field
+            label="Image URL"
+            value={form.imageUrl}
+            onChange={(v) => setForm({ ...form, imageUrl: v })}
+            placeholder="/images/dinner-night.jpg"
+          />
+          <label className="block">
+            <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-black/70">
+              Price (₦)
+            </span>
+            <input
+              type="number"
+              value={form.price}
+              onChange={(e) => setForm({ ...form, price: Number(e.target.value) })}
+              placeholder="0"
+              className="w-full rounded-lg border-2 border-black/10 px-4 py-2 text-sm outline-none focus:border-[#009444]"
+            />
+          </label>
           <label className="block">
             <span className="mb-1.5 block text-xs font-bold uppercase tracking-widest text-black/70">
               Description
@@ -608,10 +644,20 @@ function ActivitiesPanel({
                     <span className="rounded-full bg-black/5 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider">
                       {a.status}
                     </span>
+                    {a.price > 0 && (
+                      <span className="rounded-full bg-[#009444]/15 px-2 py-0.5 text-[10px] font-bold uppercase tracking-wider text-[#009444]">
+                        ₦{a.price.toLocaleString()}
+                      </span>
+                    )}
                   </div>
                   <div className="mt-1 text-xs text-black/60">
                     {a.date || "TBA"} {a.location && `• 📍 ${a.location}`}
                   </div>
+                  {a.imageUrl && (
+                    <div className="mt-1 text-[11px] text-black/50 truncate max-w-md">
+                      🖼 Image: {a.imageUrl}
+                    </div>
+                  )}
                   {a.description && (
                     <p className="mt-2 text-sm text-black/70">
                       {a.description}
@@ -869,5 +915,173 @@ function MaterialsPanel({
     </div>
   );
 }
+
+/* -------------------- TICKETS PANEL -------------------- */
+
+function TicketsPanel({
+  orders,
+  activities,
+  onUpdate,
+}: {
+  orders: TicketOrder[];
+  activities: Activity[];
+  onUpdate: (o: TicketOrder[]) => void;
+}) {
+  const [filter, setFilter] = useState<"all" | "paid" | "pending">("paid");
+  const [q, setQ] = useState("");
+
+  const filtered = useMemo(() => {
+    let list = orders;
+    if (filter !== "all") {
+      list = list.filter((o) => o.paymentStatus === filter);
+    }
+    if (q.trim()) {
+      const ql = q.toLowerCase();
+      list = list.filter((o) => {
+        const emailMatch = o.email.toLowerCase().includes(ql);
+        const refMatch = (o.paymentReference || "").toLowerCase().includes(ql);
+        
+        // Find activity title
+        const act = activities.find((a) => a.id === o.activityId);
+        const actMatch = act ? act.title.toLowerCase().includes(ql) : false;
+
+        return emailMatch || refMatch || actMatch;
+      });
+    }
+    return list;
+  }, [orders, filter, q, activities]);
+
+  async function removeOrder(id: number) {
+    if (!confirm("Are you sure you want to delete this ticket order?")) return;
+    const r = await fetch(`/api/tickets/order/${id}`, { method: "DELETE" });
+    if (r.ok) {
+      onUpdate(orders.filter((o) => o.id !== id));
+    }
+  }
+
+  async function togglePaymentStatus(id: number, currentStatus: string) {
+    const nextStatus = currentStatus === "paid" ? "pending" : "paid";
+    const r = await fetch(`/api/tickets/order/${id}`, {
+      method: "PATCH",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ paymentStatus: nextStatus }),
+    });
+    if (r.ok) {
+      const j = await r.json() as { order: TicketOrder };
+      onUpdate(orders.map((o) => (o.id === id ? j.order : o)));
+    } else {
+      onUpdate(
+        orders.map((o) =>
+          o.id === id
+            ? { ...o, paymentStatus: nextStatus, updatedAt: new Date() }
+            : o
+        )
+      );
+    }
+  }
+
+  return (
+    <div>
+      <div className="mb-5 flex flex-wrap items-center justify-between gap-3">
+        <div className="flex gap-2">
+          {(["paid", "all", "pending"] as const).map((f) => (
+            <button
+              key={f}
+              onClick={() => setFilter(f)}
+              className={`rounded-full border px-4 py-1.5 text-xs font-bold uppercase tracking-wider transition ${filter === f
+                  ? "border-[#009444] bg-[#009444] text-white"
+                  : "border-black/15 bg-white text-black/70"
+                }`}
+            >
+              {f}
+            </button>
+          ))}
+        </div>
+        <input
+          value={q}
+          onChange={(e) => setQ(e.target.value)}
+          placeholder="Search by email, ref, or event..."
+          className="w-full max-w-xs rounded-full border-2 border-black/10 bg-white px-4 py-2 text-sm outline-none focus:border-[#009444]"
+        />
+      </div>
+
+      {filtered.length === 0 ? (
+        <div className="rounded-2xl border-2 border-dashed border-black/15 bg-white p-12 text-center">
+          <div className="font-display text-2xl">No tickets found</div>
+          <p className="mt-2 text-sm text-black/60">
+            Purchased event tickets will show up here once payments are processed.
+          </p>
+        </div>
+      ) : (
+        <div className="space-y-4">
+          {filtered.map((o) => {
+            const dateStr = o.createdAt
+              ? new Date(o.createdAt).toLocaleDateString("en-US", {
+                day: "numeric",
+                month: "short",
+                year: "numeric",
+                hour: "2-digit",
+                minute: "2-digit",
+              })
+              : "N/A";
+            const isPaid = o.paymentStatus === "paid";
+            const activity = activities.find((a) => a.id === o.activityId);
+
+            return (
+              <div
+                key={o.id}
+                className="rounded-2xl border border-black/10 bg-white p-5 transition hover:shadow-md"
+              >
+                <div className="flex flex-wrap items-start justify-between gap-3 border-b border-black/5 pb-3 mb-3">
+                  <div>
+                    <div className="font-bold text-sm text-black/80">{o.email}</div>
+                    <div className="text-[10px] text-black/40 mt-0.5 uppercase tracking-widest">
+                      Ticket ID: {o.id} • {dateStr}
+                    </div>
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <span
+                      className={`rounded-full px-2.5 py-0.5 text-[9px] font-bold uppercase tracking-widest text-white ${isPaid ? "bg-[#009444]" : "bg-black/40"
+                        }`}
+                    >
+                      {o.paymentStatus.toUpperCase()}
+                    </span>
+                    <button
+                      onClick={() => togglePaymentStatus(o.id, o.paymentStatus)}
+                      className="rounded-full border border-black/15 bg-white px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-black/60 hover:bg-black/5 transition"
+                    >
+                      Toggle Status
+                    </button>
+                    <button
+                      onClick={() => removeOrder(o.id)}
+                      className="rounded-full border border-red-200 bg-red-50 px-2 py-0.5 text-[9px] font-bold uppercase tracking-widest text-red-600 hover:bg-red-100 transition"
+                    >
+                      Delete
+                    </button>
+                  </div>
+                </div>
+
+                <div className="mb-3 text-xs">
+                  <span className="font-bold text-black">Event: </span>
+                  <span className="text-black/70">{activity ? activity.title : `Event #${o.activityId}`}</span>
+                </div>
+
+                <div className="flex flex-wrap items-center justify-between gap-2 pt-2 border-t border-black/5 text-xs text-black/50">
+                  <div className="break-all font-mono text-[10px]">
+                    Ref: {o.paymentReference || "N/A"}
+                  </div>
+                  <div className="text-sm font-bold text-black">
+                    Total: <span className="text-[#009444]">₦{o.amountPaid.toLocaleString()}</span>
+                  </div>
+                </div>
+              </div>
+            );
+          })}
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 

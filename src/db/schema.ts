@@ -53,7 +53,28 @@ export const activities = pgTable("activities", {
   date: varchar("date", { length: 120 }),
   location: varchar("location", { length: 200 }),
   status: varchar("status", { length: 30 }).default("upcoming").notNull(), // upcoming | ongoing | completed
+  imageUrl: text("image_url"),
+  price: integer("price").default(0).notNull(),
   createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+});
+
+export const ticketOrders = pgTable("ticket_orders", {
+  id: serial("id").primaryKey(),
+  email: varchar("email", { length: 200 }).notNull(),
+  amountPaid: integer("amount_paid").notNull(), // in Naira
+  paymentStatus: varchar("payment_status", { length: 30 })
+    .default("pending")
+    .notNull(), // pending | paid
+  paymentReference: varchar("payment_reference", { length: 200 }),
+  activityId: integer("activity_id")
+    .references(() => activities.id, { onDelete: "cascade" })
+    .notNull(),
+  createdAt: timestamp("created_at", { withTimezone: true })
+    .defaultNow()
+    .notNull(),
+  updatedAt: timestamp("updated_at", { withTimezone: true })
     .defaultNow()
     .notNull(),
 });
@@ -81,3 +102,6 @@ export type Activity = typeof activities.$inferSelect;
 export type NewActivity = typeof activities.$inferInsert;
 export type MaterialOrder = typeof materialOrders.$inferSelect;
 export type NewMaterialOrder = typeof materialOrders.$inferInsert;
+export type TicketOrder = typeof ticketOrders.$inferSelect;
+export type NewTicketOrder = typeof ticketOrders.$inferInsert;
+

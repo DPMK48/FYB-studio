@@ -21,6 +21,8 @@ export async function POST(req: Request) {
       date: body.date || null,
       location: body.location || null,
       status: body.status || "upcoming",
+      imageUrl: body.imageUrl || null,
+      price: body.price !== undefined ? Number(body.price) : 0,
     })
     .returning();
   return NextResponse.json({ activity: row });

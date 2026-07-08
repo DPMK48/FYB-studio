@@ -2,7 +2,7 @@ import { redirect } from "next/navigation";
 import SiteNav from "@/components/SiteNav";
 import { isAdmin } from "@/lib/adminAuth";
 import { db } from "@/db";
-import { students, activities, materialOrders } from "@/db/schema";
+import { students, activities, materialOrders, ticketOrders } from "@/db/schema";
 import { desc, sql } from "drizzle-orm";
 import AdminDashboard from "./AdminDashboard";
 
@@ -13,7 +13,7 @@ export default async function AdminPage() {
     redirect("/admin/login");
   }
 
-  const [allStudents, allActivities, allMaterialOrders] = await Promise.all([
+  const [allStudents, allActivities, allMaterialOrders, allTicketOrders] = await Promise.all([
     db.select({
       id: students.id,
       fullName: students.fullName,
@@ -44,12 +44,13 @@ export default async function AdminPage() {
     }).from(students).orderBy(desc(students.createdAt)),
     db.select().from(activities).orderBy(desc(activities.createdAt)),
     db.select().from(materialOrders).orderBy(desc(materialOrders.createdAt)),
+    db.select().from(ticketOrders).orderBy(desc(ticketOrders.createdAt)),
   ]);
 
 
   const paid = allStudents.filter((s) => s.paymentStatus === "paid");
-  const downloaded = paid.filter((s) => s.downloadedByAdmin);
-  const shared = paid.filter((s) => s.sharedWithStudent);
+  const downloaded = allStudents.filter((s) => s.downloadedByAdmin);
+  const shared = allStudents.filter((s) => s.sharedWithStudent);
 
   return (
     <div>
@@ -85,6 +86,7 @@ export default async function AdminPage() {
           initialStudents={allStudents}
           initialActivities={allActivities}
           initialMaterialOrders={allMaterialOrders}
+          initialTicketOrders={allTicketOrders}
         />
       </div>
     </div>

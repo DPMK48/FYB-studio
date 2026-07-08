@@ -3,6 +3,7 @@ import { db } from "@/db";
 import { activities } from "@/db/schema";
 import { desc } from "drizzle-orm";
 import Footer from "@/components/Footer";
+import ActivityCardClient from "@/components/ActivityCardClient";
 
 export const dynamic = "force-dynamic";
 
@@ -33,66 +34,21 @@ export default async function ActivitiesPage() {
 
       <section className="mx-auto max-w-7xl px-5 py-12">
         {all.length === 0 ? (
-          <div className="rounded-2xl border-2 border-dashed border-black/15 bg-white p-12 text-center">
+          <div className="rounded-2xl border-2 border-dashed border-black/15 bg-white p-12 text-center text-black">
             <div className="font-display text-2xl">No activities yet</div>
             <p className="mt-2 text-sm text-black/60">
               The admin hasn&apos;t added any activities. Check back soon.
             </p>
           </div>
         ) : (
-          <div className="grid gap-5 md:grid-cols-2 lg:grid-cols-3">
+          <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-3">
             {all.map((a) => (
-              <div
-                key={a.id}
-                className="group relative overflow-hidden rounded-2xl border border-black/10 bg-white p-6 transition hover:-translate-y-1 hover:border-[#009444]/50 hover:shadow-xl"
-              >
-                <div
-                  className="absolute -right-12 -top-12 h-32 w-32 rounded-full bg-[#009444]/10 transition group-hover:scale-125"
-                />
-                <div className="relative">
-                  <div className="mb-3 flex items-center justify-between">
-                    <StatusBadge status={a.status} />
-                    <span className="text-xs text-black/50">
-                      {a.date || "TBA"}
-                    </span>
-                  </div>
-                  <h3 className="font-display text-2xl leading-tight">
-                    {a.title}
-                  </h3>
-                  {a.location && (
-                    <div className="mt-1 text-xs text-black/60">
-                      📍 {a.location}
-                    </div>
-                  )}
-                  {a.description && (
-                    <p className="mt-3 text-sm text-black/70">
-                      {a.description}
-                    </p>
-                  )}
-                </div>
-              </div>
+              <ActivityCardClient key={a.id} activity={a} />
             ))}
           </div>
         )}
       </section>
       <Footer />
     </div>
-  );
-}
-
-function StatusBadge({ status }: { status: string }) {
-  const map: Record<string, string> = {
-    upcoming: "bg-[#009444]/15 text-[#157a2c] border-[#009444]/40",
-    ongoing: "bg-[#d3de2c]/30 text-black border-[#d3de2c]",
-    completed: "bg-black/5 text-black/60 border-black/15",
-  };
-  return (
-    <span
-      className={`rounded-full border px-2.5 py-0.5 text-[10px] font-bold uppercase tracking-wider ${
-        map[status] || map.upcoming
-      }`}
-    >
-      {status}
-    </span>
   );
 }
